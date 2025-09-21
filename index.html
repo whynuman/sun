@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title> Stellar Catastrophe: Sun’s Final Moments</title>
+  <link rel="shortcut icon" href="sun.png" type="image/x-icon">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  
+</head>
+<body>
+  <div class="container">
+    <h1>☀️ The Sun</h1>
+    <div id="sun-container"></div>
+
+    <div class="controls">
+      <button id="start-btn">💀 Death</button>
+      <button id="reset-btn">🔄 Reset</button>
+    </div>
+
+    <div class="timeline">
+      <div style="text-align:center;margin-bottom:6px;font-size:0.9rem;">Transformation Progress</div>
+      <div class="phase-indicator">
+        <div class="phase-progress" id="phase-progress"></div>
+      </div>
+      <div class="timeline-labels">
+        <span>Stable</span><span>Collapse</span><span>Explosion</span>
+      </div>
+    </div>
+
+    <div class="info-panel">
+      <h2>⚡ Transformation Process</h2>
+      <p id="phase-text">Current Phase: Stable Sun</p>
+      <p>Time remaining: <span id="time-remaining">N/A</span></p>
+    </div>
+
+    <!-- New explosion message -->
+    <div id="explosion-message">Rip🙂😭</div>
+  </div>
+
+  <!-- 🎵 Audio files -->
+  <audio id="progress" src="Audio file/progress.mp3" preload="auto"></audio>
+  <audio id="explosion" src="Audio file/explosion.mp3" preload="auto"></audio>
+  <audio id="last-message" src="Audio file/last-message.mp3" preload="auto"></audio>
+
+  <script>
+    // Sound helper
+    function playSound(id, volume = 1.0) {
+      const sound = document.getElementById(id);
+      if (sound) {
+        sound.volume = volume;
+        sound.currentTime = 0; // restart
+        sound.play();
+      }
+    }
+
+    // Scene & UI synced so explosion happens exactly at the end of the countdown
+    let scene, camera, renderer, sun, particles = [];
+    let active = false, exploded = false, startTime = 0;
+    const duration = 15000; // total sequence length in ms (15s)
+    const explodeOffset = 0; // keep synced
+
+    function createStars() {
+      const container = document.querySelector('.container');
+      for (let i = 0; i < 120; i++) {
+        const star = document.createElement('div');
+        star.className = 'star';
+        const size = Math.random()*2+1;
+        star.style.width = star.style.height = size+'px';
+        star.style.left = Math.random()*100+'%';
+        star.style.top = Math.random()*100+'%';
+        star.style.animationDelay = Math.random()*5+'s';
+        container.appendChild(star);
+      }
+    }
+
+    function init() {
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 1000);
+      camera.position.z = 60;
+
+      renderer = new THREE.WebGLRenderer({antialias:true});
+      renderer.setSize(innerWidth, innerHeight);
+      document.getElementById("sun-container").appendChild(renderer.domElement);
+
+      // Sun
+      const sunGeo = new THREE.SphereGeometry(10, 64, 64);
+      const sunMat = new THREE.MeshStandardMaterial({
+        emissive: 0xff9900,
+        emissiveIntensity: 1.2,
+        color: 0xffffff
+      });
+      sun = new THREE.Mesh(sunGeo, sunMat);
+      scene.add(sun);
+
+      const light = new THREE.PointLight(0xffffff, 1, 200);
+      light.position.set(30,30,50);
+      scene.add(light);
+
+      window.addEventListener('resize', () => {
+        camera.aspect = innerWidth/innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(innerWidth, innerHeight);
+      });
+
+      document.getElementById("start-btn").onclick = start;
+      document.getElementById("reset-btn").onclick = reset;
+
+      animate();
+    }
+
+    function start() {
+      if (!active) {
+        active = true;
+        exploded = false;
+        startTime = Date.now();
+        document.getElementById("start-btn").disabled = true;
+
+        // Play collapse/progress sound
+        playSound("progress", 0.7);
+      }
+    }
+
+    function reset() {
+      active = false; exploded = false;
+      particles.forEach(p => scene.remove(p.mesh));
+      particles = [];
+
+      sun.visible = true;
+      sun.scale.set(1,1,1);
+      sun.material.emissive.setHex(0xff9900);
+      sun.material.emissiveIntensity = 1.2;
+
+      document.getElementById("phase-text").textContent = "Current Phase: Stable Sun";
+      document.getElementById("time-remaining").textContent = "N/A";
+      document.getElementById("phase-progress").style.width = "0%";
+      document.getElementById("start-btn").disabled = false;
+      document.getElementById("explosion-message").style.display = "none"; // hide message
+    }
+
+    function explodeSun() {
+      if (exploded) return;
+      exploded = true;
+      sun.visible = false;
+
+      const particleGeo = new THREE.SphereGeometry(0.28, 8, 8);
+
+      for (let i = 0; i < 650; i++) {
+        const particleMat = new THREE.MeshStandardMaterial({
+          emissive: new THREE.Color(0xff7a2a),
+          emissiveIntensity: 1.5,
+          color: 0xffffff,
+          roughness: 0.6, metalness: 0.1
+        });
+        const mesh = new THREE.Mesh(particleGeo, particleMat);
+        mesh.position.copy(sun.position);
+
+        const speed = 1 + Math.random()*6;
+        const dir = new THREE.Vector3(
+          (Math.random()-0.5),
+          (Math.random()-0.5),
+          (Math.random()-0.5)
+        ).normalize().multiplyScalar(speed);
+
+        mesh.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
+
+        particles.push({mesh, velocity: dir, life: 120 + Math.random()*200});
+        scene.add(mesh);
+      }
+
+      // ensure countdown shows zero exactly when explosion happens
+      document.getElementById("time-remaining").textContent = "0.0s";
+
+      // Play explosion sound
+      playSound("explosion", 1.0);
+
+      // Show explosion message
+      setTimeout(() => {
+      const message = document.getElementById("explosion-message");
+      message.style.display = "block";
+      playSound("last-message", 0.9);
+    }, 2000); 
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      sun.rotation.y += 0.01;
+
+      if (active && !exploded) {
+        const elapsed = Date.now() - startTime;
+        const adjustedElapsed = elapsed + explodeOffset;
+        const clampedElapsed = Math.max(0, adjustedElapsed);
+        const prog = Math.min(clampedElapsed / duration, 1);
+
+        document.getElementById("phase-progress").style.width = (prog * 100).toFixed(2) + "%";
+        const remainingMs = Math.max(0, duration - clampedElapsed);
+        document.getElementById("time-remaining").textContent = (remainingMs/1000).toFixed(1) + "s";
+
+        if (prog < 1) {
+          const scale = 1 - prog * 0.92;
+          sun.scale.set(scale, scale, scale);
+          sun.material.emissiveIntensity = 1.2 * (1 - prog * 1.2);
+          document.getElementById("phase-text").textContent = "Phase: Collapse Begins";
+        } else {
+          document.getElementById("phase-text").textContent = "Phase: Supernova Explosion!";
+          explodeSun();
+        }
+      }
+
+      if (exploded) {
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const p = particles[i];
+          p.mesh.position.addScaledVector(p.velocity, 1);
+          p.velocity.multiplyScalar(0.996);
+          p.mesh.material.emissiveIntensity *= 0.995;
+          p.mesh.scale.multiplyScalar(0.9995);
+          p.life--;
+          if (p.life <= 0) {
+            scene.remove(p.mesh);
+            particles.splice(i, 1);
+          }
+        }
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    window.onload = () => { createStars(); init(); };
+  </script>
+</body>
+</html>
