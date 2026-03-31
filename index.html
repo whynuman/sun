@@ -37,7 +37,7 @@
 
     <!-- New explosion message -->
     <div id="explosion-message">Rip🙂😭 </div>
-    <div id="explosion-message delay1">Directed By Numan </div>
+    <div id="explosion-message delay2" style="display:none;">Directed By Numan </div>
   </div>
 
   <!-- 🎵 Audio files -->
@@ -183,6 +183,9 @@
       playSound("last-message", 0.9);
     }, 2000); 
     }
+     setTimeout(() => {
+    document.getElementById("delay2").style.display = "block";
+  }, 2000);
 
     function animate() {
       requestAnimationFrame(animate);
